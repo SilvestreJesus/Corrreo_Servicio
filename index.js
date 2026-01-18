@@ -3,18 +3,30 @@ const cors = require('cors');
 
 const app = express();
 
+// Configuración de CORS
 app.use(cors({
     origin: ['https://factorfit.vercel.app', 'http://localhost:4200'],
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Aumentar el límite para recibir imágenes en Base64
 app.use(express.json({ limit: '50mb' }));
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 app.post('/enviar-correo', async (req, res) => {
-    const { emails, asunto, mensaje, imagen, nombres, password, tipo, sede } = req.body;
+    const { 
+        emails, 
+        asunto, 
+        mensaje, 
+        imagen, 
+        nombres, 
+        password, 
+        tipo, 
+        sede, 
+        htmlDirecto // Recibe el HTML ya diseñado en PHP
+    } = req.body;
 
     if (!emails || !Array.isArray(emails)) {
         return res.status(400).json({ error: "Se requiere un array de correos" });
@@ -23,33 +35,12 @@ app.post('/enviar-correo', async (req, res) => {
     try {
         let htmlFinal = "";
 
-        // PLANTILLA 1: CORREO INFORMATIVO / PROMOCIONAL
-        if (tipo === 'promocion' || !tipo) {
-            const imagenHtml = (imagen && imagen.includes("base64,")) 
-                ? `<div style="margin-top: 25px; text-align: center;">
-                    <img src="cid:foto_promo" alt="Factor Fit News" style="max-width: 100%; height: auto; border-radius: 15px; display: block; margin: 0 auto; border: 1px solid #eee;">
-                </div>` 
-                : "";
-
-            htmlFinal = `
-            <div style="width: 100%; max-width: 600px; margin: 0 auto; border: 1px solid #f0f0f0; font-family: sans-serif;">
-                <div style="background: #111827; padding: 20px; text-align: center;">
-                    <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: 2px;">FACTOR FIT</span>
-                </div>
-                <div style="padding: 30px; background: white;">
-                    <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-                        ${mensaje.replace(/\n/g, '<br>')}
-                    </p>
-                    ${imagenHtml}
-                </div>
-                <div style="padding: 20px; background: #f9fafb; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #eee;">
-                    © 2026 Factor Fit System | Sede: ${sede || 'General'}<br>
-                    Este es un correo informativo, por favor no respondas a este mensaje.
-                </div>
-            </div>`;
-        }
+        // CASO 1: PRIORIDAD - Si Laravel envía el diseño listo desde PHP
+        if (tipo === 'html_puro' || htmlDirecto) {
+            htmlFinal = htmlDirecto;
+        } 
         
-        // PLANTILLA 2: CONTRASEÑA TEMPORAL (Actualizada con tu diseño)
+        // CASO 2: PLANTILLA DE CONTRASEÑA (Respaldo si no viene htmlDirecto)
         else if (tipo === 'password') {
             htmlFinal = `
             <div style="max-width: 600px; margin: 0 auto; font-family: sans-serif; border: 1px solid #e5e7eb; border-radius: 20px; overflow: hidden;">
@@ -70,6 +61,32 @@ app.post('/enviar-correo', async (req, res) => {
                 </div>
             </div>`;
         }
+        
+        // CASO 3: PLANTILLA INFORMATIVA / PROMOCIONAL (Respaldo)
+        else {
+            const imagenHtml = (imagen && imagen.includes("base64,")) 
+                ? `<div style="margin-top: 25px; text-align: center;">
+                    <img src="cid:foto_promo" alt="Factor Fit News" style="max-width: 100%; height: auto; border-radius: 15px; display: block; margin: 0 auto; border: 1px solid #eee;">
+                </div>` 
+                : "";
+
+            htmlFinal = `
+            <div style="width: 100%; max-width: 600px; margin: 0 auto; border: 1px solid #f0f0f0; font-family: sans-serif;">
+                <div style="background: #111827; padding: 20px; text-align: center;">
+                    <span style="color: white; font-size: 20px; font-weight: bold; letter-spacing: 2px;">FACTOR FIT</span>
+                </div>
+                <div style="padding: 30px; background: white;">
+                    <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                        ${mensaje ? mensaje.replace(/\n/g, '<br>') : ''}
+                    </p>
+                    ${imagenHtml}
+                </div>
+                <div style="padding: 20px; background: #f9fafb; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #eee;">
+                    © 2026 Factor Fit System | Sede: ${sede || 'General'}<br>
+                    Este es un correo informativo, por favor no respondas a este mensaje.
+                </div>
+            </div>`;
+        }
 
         const emailPayload = {
             sender: { name: "Factor Fit", email: "22690406@tecvalles.mx" },
@@ -78,8 +95,8 @@ app.post('/enviar-correo', async (req, res) => {
             htmlContent: htmlFinal
         };
 
-        // CORRECCIÓN DE IMAGEN: Solo adjuntar si existe y es promoción
-        if (imagen && imagen.includes("base64,") && (tipo === 'promocion' || !tipo)) {
+        // Adjuntar imagen solo si existe y no es el caso de HTML Puro (donde las imágenes suelen ser URLs externas)
+        if (imagen && imagen.includes("base64,") && tipo !== 'html_puro') {
             emailPayload.attachment = [{
                 content: imagen.split("base64,")[1],
                 name: "foto.png",
@@ -101,9 +118,10 @@ app.post('/enviar-correo', async (req, res) => {
         res.json({ success: true, result });
 
     } catch (error) {
+        console.error("Error enviando correo:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Servidor con estilos en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor de correos activo en puerto ${PORT}`));
