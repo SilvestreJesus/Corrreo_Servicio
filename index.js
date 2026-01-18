@@ -1,5 +1,22 @@
+const express = require('express');
+const cors = require('cors');
+
+// --- ESTO ES LO QUE FALTABA ---
+const app = express(); 
+
+app.use(cors({
+    origin: ['https://factorfit.vercel.app', 'http://localhost:4200'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Aumentamos el límite para recibir el HTML y las imágenes en Base64
+app.use(express.json({ limit: '50mb' }));
+
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+
 app.post('/enviar-correo', async (req, res) => {
-    // Recibimos htmlContent directamente desde Laravel
+    // Recibimos el HTML ya procesado desde Laravel
     const { emails, asunto, htmlContent, imagen } = req.body;
 
     if (!emails || !Array.isArray(emails)) {
@@ -11,15 +28,15 @@ app.post('/enviar-correo', async (req, res) => {
             sender: { name: "Factor Fit", email: "22690406@tecvalles.mx" },
             to: emails.map(e => ({ email: e })),
             subject: asunto,
-            htmlContent: htmlContent // El HTML que Laravel ya diseñó
+            htmlContent: htmlContent 
         };
 
-        // Si hay una imagen (promoción), se adjunta para que el <img src="cid:foto_promo"> funcione
+        // Si Laravel envía una imagen, la adjuntamos
         if (imagen && imagen.includes("base64,")) {
             emailPayload.attachment = [{
                 content: imagen.split("base64,")[1],
-                name: "promocion.png",
-                contentId: "foto_promo" 
+                name: "foto.png",
+                contentId: "foto_promo" // Este ID debe coincidir con el de la vista Blade
             }];
         }
 
@@ -40,3 +57,6 @@ app.post('/enviar-correo', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`Servidor de transporte activo en puerto ${PORT}`));
