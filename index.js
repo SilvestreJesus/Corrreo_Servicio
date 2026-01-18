@@ -44,7 +44,6 @@ app.post('/enviar-correo', async (req, res) => {
                     <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0; white-space: pre-line;">
                         ${mensaje}
                     </p>
-                    ${imagenHtml}
                 </div>
                 <div style="padding: 20px; background: #f9fafb; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #eee;">
                     © 2026 Factor Fit System | Sede: ${sede || 'General'}<br>
