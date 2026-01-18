@@ -34,6 +34,19 @@ app.post('/enviar-correo', async (req, res) => {
         // CASO 1: PRIORIDAD - HTML Directo de PHP
         if (tipo === 'html_puro' || htmlDirecto) {
             htmlFinal = htmlDirecto;
+        
+        // --- NUEVO: SI EL HTML VIENE DE LARAVEL Y HAY IMAGEN ---
+        // Buscamos si el HTML trae el marcador de posición para la imagen
+        // o si simplemente queremos forzar que la imagen aparezca al final del contenido blanco
+        if (imagen && !htmlFinal.includes('cid:foto_promo')) {
+             // Esto inserta la imagen justo antes del cierre del div blanco si no existe el cid
+             htmlFinal = htmlFinal.replace('</div>\n\n    <div class="footer"', `
+                <div style="text-align: center; margin-top: 20px;">
+                    <img src="cid:foto_promo" style="max-width: 100%; border-radius: 10px; display: block; margin: 0 auto;">
+                </div>
+             </div>
+             <div class="footer"`);
+        }
         } 
         
         // CASO 2: RECUPERACIÓN DE CONTRASEÑA
