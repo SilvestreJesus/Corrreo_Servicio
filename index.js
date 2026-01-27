@@ -54,7 +54,7 @@ app.post('/enviar-correo', async (req, res) => {
         }
 
         const emailPayload = {
-            sender: { name: "Factor Fit", email: "22690406@tecvalles.mx" },
+            sender: { name: "Factor Fit", email: "g-nafc@hotmail.com" },
             to: emails.map(e => ({ email: e })),
             subject: asunto,
             htmlContent: htmlFinal
